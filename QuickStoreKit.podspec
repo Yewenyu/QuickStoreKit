@@ -15,6 +15,7 @@ Pod::Spec.new do |s|
   
   # 如果你的框架依赖于其他第三方库，可以在这里添加依赖
   # s.dependency 'AnotherPod', '~> 1.0'
+  
 end
 
 # pod trunk register your_email@example.com 'Your Name'

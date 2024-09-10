@@ -4,7 +4,7 @@ import Foundation
 
 class FilterKeys: QuickStoreProtocol {
     static var isAppGroup: Bool = true
-    static var addFilterCach: Bool = false
+    static var excludeStoreCache: Bool = false
 
     enum Key: String {
         case filterKey
@@ -14,7 +14,7 @@ class FilterKeys: QuickStoreProtocol {
 }
 
 public class StoreCache: QuickStoreProtocol {
-    public static var addFilterCach: Bool = true
+    public static var excludeStoreCache: Bool = true
 
     public enum Key: String {
         case customCachePath, defaultCachePath, currentCachSize

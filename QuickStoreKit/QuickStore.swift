@@ -7,7 +7,7 @@ public protocol QuickStoreProtocol {
     static var isAppGroup: Bool { get }
     static var store: StoreData { get }
     static var identify: String? { get }
-    static var addFilterCach: Bool { get }
+    static var excludeStoreCache: Bool { get }
     static var crypt: QuickStoreCryptProtocol? { get }
 }
 
@@ -50,7 +50,7 @@ extension QuickStoreProtocol {
             safeQueue = SafeQueueHandle.getQueue("\(Target.self)")
         }
 
-        if Target.addFilterCach {
+        if Target.excludeStoreCache {
             DispatchQueue.main.async {
                 let key = FileStore.encodeKey("\(Target.self)")
                 FilterKeys.filterKey?[key] = 0
