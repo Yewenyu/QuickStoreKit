@@ -21,6 +21,7 @@
 		9862842D2C8FE6D8009EDDD0 /* FileStore.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = FileStore.swift; sourceTree = "<group>"; };
 		9862842E2C8FE6D8009EDDD0 /* QuickStore.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = QuickStore.swift; sourceTree = "<group>"; };
 		986284382C8FF206009EDDD0 /* QuickStoreCrypt.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QuickStoreCrypt.swift; sourceTree = "<group>"; };
+		9862843A2C902F1C009EDDD0 /* QuickStoreKit.podspec */ = {isa = PBXFileReference; lastKnownFileType = text; path = QuickStoreKit.podspec; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -37,6 +38,7 @@
 		986284162C8FE658009EDDD0 = {
 			isa = PBXGroup;
 			children = (
+				9862843A2C902F1C009EDDD0 /* QuickStoreKit.podspec */,
 				986284222C8FE658009EDDD0 /* QuickStoreKit */,
 				986284212C8FE658009EDDD0 /* Products */,
 			);
