@@ -19,6 +19,7 @@ QuickStoreKit is available through [CocoaPods](https://cocoapods.org). To instal
 
 ```ruby
 pod 'QuickStoreKit'
+```
 
 License
 This project is licensed under the MIT License - see the LICENSE file for details.
