@@ -21,6 +21,9 @@ QuickStoreKit is available through [CocoaPods](https://cocoapods.org). To instal
 pod 'QuickStoreKit'
 ```
 
+## Note
+A class that implements QuickStoreProtocol is a static class, and the QuickStore properties inside it are static properties of the class. Therefore, if you create multiple instances of this class, they will all actually access the same QuickStore property.
+
 ## Usage
 
 ```swift
@@ -29,6 +32,7 @@ import QuickStoreKit
 // Define a class that conforms to the QuickStoreProtocol
 class Sample: QuickStoreProtocol {
 
+    static let shared = Sample()
     // Whether to exclude store cache (set to true)
     static var excludeStoreCache: Bool = true
 
@@ -49,6 +53,9 @@ class Sample: QuickStoreProtocol {
     // Use @QuickStoreEnum to store an enum value
     @QuickStoreEnum<Sample, Key>(.key) var key
 }
+
+Sample.shared.intValue = 1
+let intValue = Sample.shared.intValue
 ```
 
 You can customize the encryption and decryption methods as well as the storage methods. The built-in SimpleCrypt and FileStore are available and used by default.
