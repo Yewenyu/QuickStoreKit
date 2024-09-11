@@ -2,26 +2,56 @@
 
 import Foundation
 
-public class FileStore: StoreData {
+
+public protocol QuickStoreHandleProtocol{
+    init(_ isAppGroup: Bool,options:[String:Any]?)
+    func set(_ key: String, value: Data?)
+    func value(_ forKey: String) -> Data?
+    var isAppGroup : Bool{get set}
+}
+
+class FileStore: QuickStoreHandleProtocol {
+    required init(_ isAppGroup: Bool, options: [String : Any]? = nil) {
+        self.isAppGroup = isAppGroup
+        self.subDir = options?["id"] as? String ?? ""
+    }
+    
+    
+    var isAppGroup: Bool =  false
+    var subDir: String = ""
+    
+    var mainDir: String = "QuickStoreDir"
+    
+    
+    var identifier: String = ""
+   
+    
+    static let bundleID = Bundle.main.bundleIdentifier!
+
+    public static var groupName = "group"
+    public static var sharedGroupIdentifier: String {
+        var array = bundleID.components(separatedBy: ".")
+        if array.count > 3 {
+            array.removeLast(array.count - 3)
+        }
+        array.insert(groupName, at: 0)
+        let string = array.joined(separator: ".")
+        return string
+    }
     public static var cachPaths = Safe(Set<String>())
 
-    lazy var mainDir: URL = {
+    lazy var mainDirUrl: URL = {
         let url = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first!
-        let m = isShared ? FileManager().containerURL(forSecurityApplicationGroupIdentifier: self.identifier) : url
+        let m = isAppGroup ? FileManager().containerURL(forSecurityApplicationGroupIdentifier: Self.sharedGroupIdentifier) : url
         _ = m.map {
             FileStore.cachPaths.value.insert($0.path)
         }
         return m ?? url
     }()
-
-    var isShared = false
-    override public init(_ identifier: String? = nil) {
-        super.init(identifier)
-        isShared = identifier == nil
-    }
+    
 
     private var targetDir: URL {
-        return mainDir.appendingPathComponent(dataKey)
+        return mainDirUrl.appendingPathComponent(mainDir).appendingPathComponent(subDir)
     }
 
     private var pathExt = "key"
@@ -37,7 +67,7 @@ public class FileStore: StoreData {
         return FileStore.encodeKey(key)
     }
 
-    override func set(_ key: String, value: Data?) {
+    func set(_ key: String, value: Data?) {
         if !targetDir.fileIsExit {
             targetDir.dirCreate()
         }
@@ -51,7 +81,7 @@ public class FileStore: StoreData {
         setFilePath(dir)
     }
 
-    override func value(_ forKey: String) -> Data? {
+    func value(_ forKey: String) -> Data? {
         let key = encodeKey(forKey)
         let dir = targetDir.appendingPathComponent(key)
         var data = try? Data(contentsOf: dir, options: [])
@@ -75,29 +105,7 @@ public class FileStore: StoreData {
 
     static var filePaths = Safe([URL: Int]())
 
-    override public class func clearAll() {
-        filePaths.value.forEach {
-            if FileManager.default.fileExists(atPath: $0.key.path) {
-                try? FileManager.default.removeItem(at: $0.key)
-            }
-        }
-    }
-
-    public func clearAll(_ key: String) {
-        let fileManager = FileManager.default
-        let folderPath = mainDir
-        do {
-            let files = try fileManager.contentsOfDirectory(atPath: folderPath.path)
-            for file in files {
-                if file.contains(key) {
-                    try fileManager.removeItem(at: folderPath.appendingPathComponent(file))
-                }
-                print("Found file: \(file)")
-            }
-        } catch {
-            print("Error while enumerating files \(folderPath): \(error.localizedDescription)")
-        }
-    }
+    
 }
 
 extension URL {

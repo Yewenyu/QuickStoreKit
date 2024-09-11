@@ -1,6 +1,6 @@
 Pod::Spec.new do |s|
   s.name             = 'QuickStoreKit'
-  s.version          = '0.0.2'
+  s.version          = '0.0.3'
   s.summary          = 'A Swift-based storage management framework for iOS.'
   s.description      = <<-DESC
                         QuickStoreKit is a powerful storage management framework designed to make data handling easier and more secure in iOS applications. It supports encryption, caching, and custom storage solutions.

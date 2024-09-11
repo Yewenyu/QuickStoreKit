@@ -8,11 +8,13 @@
 import Foundation
 
 public protocol QuickStoreCryptProtocol {
+    init()
     func encrypt(_ key: String, value: Data) -> Data
     func decrypt(_ key: String, value: Data) -> Data
 }
 
 class SimpleCrypt: QuickStoreCryptProtocol {
+    required init(){}
     func encrypt(_ key: String, value: Data) -> Data {
         let bytes = value.bytes
         let newBytes = bytes.map { (Int($0) + key.count % 255) % 255 }.map { UInt8($0) }

@@ -5,29 +5,107 @@ import Foundation
 public protocol QuickStoreProtocol {
     associatedtype Key: RawRepresentable
     static var isAppGroup: Bool { get }
-    static var store: StoreData { get }
-    static var identify: String? { get }
+    static var store: QuickStoreHandleProtocol { get }
     static var excludeStoreCache: Bool { get }
     static var crypt: QuickStoreCryptProtocol? { get }
 }
 
-public var GlobelCrypt: QuickStoreCryptProtocol = SimpleCrypt()
-extension QuickStoreProtocol {
+public class GlobalConfig {
+    public static var storeType: QuickStoreHandleProtocol.Type = FileStore.self
+    public static var cryptType: QuickStoreCryptProtocol.Type = SimpleCrypt.self
+    static var storeDic = Safe([String: QuickStoreHandleProtocol]())
+
+    static func set(_ key: String, store: QuickStoreHandleProtocol) {
+        storeDic.value[key] = store
+    }
+
+    static func get(key: String) -> QuickStoreHandleProtocol? {
+        return storeDic.value[key]
+    }
+}
+
+extension QuickStoreProtocol where Key.RawValue == String {
     public static var isAppGroup: Bool {
         return false
     }
 
     public static var crypt: QuickStoreCryptProtocol? {
-        return GlobelCrypt
+        return GlobalConfig.cryptType.init()
     }
 
-    public static var identify: String? {
-        let identify: String? = isAppGroup ? nil : "\(self)"
-        return identify
+    public static var store: QuickStoreHandleProtocol {
+        if let store = GlobalConfig.get(key: className) {
+            return store
+        }
+        let store = GlobalConfig.storeType.init(isAppGroup, options: ["id": className])
+        GlobalConfig.set(className, store: store)
+        return store
     }
 
-    public static var store: StoreData {
-        return FileStore(identify)
+    private static var className: String {
+        let key = "\(self)"
+        return key
+    }
+
+    public static func set(_ key: String, value: Any?) {
+        let newKey = "\(className)." + key
+
+        var newValue: Data?
+
+        if let value = value as? Data {
+            newValue = value
+        } else if let v = value {
+            newValue = [v].toData
+        }
+        if let crypt = crypt {
+            newValue = newValue.map {
+                crypt.encrypt(key, value: $0)
+            }
+        }
+
+        store.set(newKey, value: newValue)
+    }
+
+    public static func set(_ key: Key, value: Any?) {
+        let newKey = key.rawValue
+        set(newKey, value: value)
+    }
+
+    public static func value<T>(_ forKey: Key, type: T.Type, encrypt: Bool = true) -> T? {
+        let newKey = forKey.rawValue
+        return value(newKey, type: type, encrypt: encrypt)
+    }
+
+    public static func value<T>(_ forKey: String, type: T.Type, encrypt: Bool = true) -> T? {
+        let newKey = "\(className)." + forKey
+        var data = store.value(newKey)
+        if let crypt = crypt {
+            data = data.map {
+                crypt.decrypt(newKey, value: $0)
+            }
+        }
+
+        if T.self == Data.self {
+            return data as? T
+        } else if let data = data {
+            do {
+                let value = try JSONSerialization.jsonObject(with: data)
+                if let value = value as? [T] {
+                    return value.first
+                }
+            } catch _ {
+                return nil
+            }
+        }
+        return nil
+    }
+
+    static func value<T>(_ forKey: String, encrypt: Bool = true) -> T? {
+        return value(forKey, type: T.self, encrypt: encrypt)
+    }
+
+    static func value<T>(_ forKey: Key, encrypt: Bool = true) -> T? {
+        return value(forKey, type: T.self, encrypt: encrypt)
     }
 }
 
@@ -202,145 +280,6 @@ extension QuickStoreProtocol {
     }
 }
 
-extension QuickStoreProtocol where Key.RawValue == String {
-    private static var objKey: String {
-        let key = "\(self)"
-        store.dataKey = key
-        return key
-    }
-
-    public static func removeAllCach() {
-        FileStore(identify).clearAll(objKey)
-    }
-
-    public static func set(_ key: String, value: Any?) {
-        let newKey = "\(objKey)." + key
-
-        var newValue: Data?
-
-        if let value = value as? Data {
-            newValue = value
-        } else if let v = value {
-            newValue = [v].toData
-        }
-        if let crypt = crypt {
-            newValue = newValue.map {
-                crypt.encrypt(key, value: $0)
-            }
-        }
-
-        store.set(newKey, value: newValue)
-    }
-
-    public static func set(_ key: Key, value: Any?) {
-        let newKey = key.rawValue
-        set(newKey, value: value)
-    }
-
-    public static func value<T>(_ forKey: Key, type: T.Type, encrypt: Bool = true) -> T? {
-        let newKey = forKey.rawValue
-        return value(newKey, type: type, encrypt: encrypt)
-    }
-
-    public static func value<T>(_ forKey: String, type: T.Type, encrypt: Bool = true) -> T? {
-        let newKey = "\(objKey)." + forKey
-        var data = store.value(newKey)
-        if let crypt = crypt {
-            data = data.map {
-                crypt.decrypt(newKey, value: $0)
-            }
-        }
-
-        if T.self == Data.self {
-            return data as? T
-        } else if let data = data {
-            do {
-                let value = try JSONSerialization.jsonObject(with: data)
-                if let value = value as? [T] {
-                    return value.first
-                }
-            } catch _ {
-                return nil
-            }
-        }
-        return nil
-    }
-
-    static func value<T>(_ forKey: String, encrypt: Bool = true) -> T? {
-        return value(forKey, type: T.self, encrypt: encrypt)
-    }
-
-    static func value<T>(_ forKey: Key, encrypt: Bool = true) -> T? {
-        return value(forKey, type: T.self, encrypt: encrypt)
-    }
-
-    #if canImport(CryptoSwift)
-        private static var aes: AES? {
-            var identify = self.identify ?? "\(self)"
-            while identify.count < 16 {
-                identify += "5"
-            }
-            if identify.count > 16 {
-                identify = identify.suffix(16).description
-            }
-            return try? AES(key: Array(identify.utf8), blockMode: CBC(iv: Array("0123456789ABCDEF".utf8)), padding: .pkcs5)
-        }
-    #endif
-}
-
-// struct WidgetShared : QuickStoreProtocol{
-//    static var addFilterCach: Bool = false
-//
-//    enum Key : String {
-//        case widgetUserExpireTime,widgetConnectStatus
-//    }
-//    static var isTargetShared: Bool = true
-//    static var userExpireTime : String? {
-//        get{
-//            return value(.widgetUserExpireTime)
-//        }
-//
-//        set{
-//            set(.widgetUserExpireTime, value: newValue)
-//        }
-//    }
-//
-//    static var connectStatus : Bool {
-//        get{
-//            return value(.widgetConnectStatus) ?? false
-//        }
-//
-//        set{
-//            set(.widgetConnectStatus, value: newValue)
-//        }
-//    }
-// }
-
-#if canImport(SmartCodable)
-    import SmartCodable
-    @propertyWrapper public class QuickStoreModel<Target: QuickStoreProtocol, Value: SmartCodable>: QuickStore<Target, Value> where Target.Key.RawValue == String {
-        override public var wrappedValue: Value? {
-            set {
-                let json = newValue?.toDictionary()
-                current = newValue
-                Target.set(key, value: json)
-            }
-            get {
-                var v = current
-                if v == nil {
-                    if let json: [String: Any] = Target.value(key) {
-                        v = Value.deserialize(from: json)
-                    } else if let data: Data = getCach() {
-                        v = Value.deserialize(from: data)
-                    }
-                    current = v
-                }
-                return v
-            }
-        }
-    }
-#endif
-
 private class SafeQueueHandle {
     static var currentCount: Int = 0
     static var safeQueues = Safe([String: DispatchQueue]())
@@ -352,132 +291,6 @@ private class SafeQueueHandle {
             safeQueues.value[key] = queue
         }
         return queue!
-    }
-}
-
-public class StoreData {
-    var dataKey: String = ""
-    func set(_ key: String, value: Data?) {
-    }
-
-    func value(_ forKey: String) -> Data? {
-        return nil
-    }
-
-    var identifier: String = ""
-    init(_ identifier: String? = nil) {
-        self.identifier = identifier ?? UserDefaultStore.sharedGroupIdentifier
-    }
-
-    public class func clearAll() {
-    }
-
-    public static var fileQueue = DispatchQueue(label: "\(StoreData.self).fileQueue", autoreleaseFrequency: .workItem)
-}
-
-public class UserDefaultStore: StoreData {
-    static let shared = UserDefaultStore()
-    enum Key: String {
-        case udpRelay, dnsRelay, dnsRelayOnly, isDNSRelayKey
-
-        /// 值为0：关闭，1：默认tcp，2：默认udp
-        case speedDNSMode
-    }
-
-    var userDefaults: UserDefaults {
-        return UserDefaults(suiteName: self.identifier)!
-    }
-
-    override func set(_ key: String, value: Data?) {
-        let userDefaults = self.userDefaults
-        userDefaults.setValue(value, forKey: key)
-        userDefaults.synchronize()
-    }
-
-    override func value(_ forKey: String) -> Data? {
-        return userDefaults.value(forKey: forKey) as? Data
-    }
-
-    func value<T>(_ forKey: String, type: T.Type) -> T? {
-        return userDefaults.value(forKey: forKey) as? T
-    }
-
-    func value<T>(_ forKey: String) -> T? {
-        return value(forKey, type: T.self)
-    }
-
-    func set(_ key: Key, value: Any?) {
-        userDefaults.set(value, forKey: key.rawValue)
-    }
-
-    override public class func clearAll() {
-        let userDefault = UserDefaults.standard
-        let app = Bundle.main.bundleIdentifier ?? ""
-        userDefault.removePersistentDomain(forName: app)
-        userDefault.synchronize()
-        var path = NSSearchPathForDirectoriesInDomains(.libraryDirectory, .userDomainMask, true).last ?? ""
-        path += "/Preferences"
-        let list = try! FileManager.default.contentsOfDirectory(atPath: path)
-        for l in list {
-            let file = path + "/" + l
-            if FileManager.default.fileExists(atPath: file), l.hasSuffix(".plist") {
-                if l.contains("VPN") {
-                    NSLog("")
-                }
-                let name = (l as NSString).deletingPathExtension as String
-                let de = UserDefaults(suiteName: name)
-                de?.removePersistentDomain(forName: name)
-                try? FileManager.default.removeItem(atPath: file)
-            }
-        }
-    }
-}
-
-extension UserDefaultStore {
-    static let bundleID = Bundle.main.bundleIdentifier!
-
-    public static var groupName = "group"
-    public static var sharedGroupIdentifier: String {
-        var array = bundleID.components(separatedBy: ".")
-        if array.count > 3 {
-            array.removeLast(array.count - 3)
-        }
-        array.insert(groupName, at: 0)
-        let string = array.joined(separator: ".")
-        return string
-    }
-}
-
-extension Encodable {
-    public var encoder: JSONEncoder {
-        return .init()
-    }
-
-    public var data: Data? {
-        return try? encoder.encode(self)
-    }
-}
-
-public protocol DecodableExDecoder: Decodable {
-    static var decoder: JSONDecoder { get }
-}
-
-extension Data {
-    public func toModel<T: Decodable>() -> T? {
-        do {
-            let decoder: JSONDecoder
-            if let type = T.self as? DecodableExDecoder.Type {
-                decoder = type.decoder
-            } else {
-                decoder = JSONDecoder()
-            }
-            return try decoder.decode(T.self, from: self)
-        } catch {
-            #if DEBUG
-                NSLog("\(Self.self).toModel: \(error)")
-            #endif
-            return nil
-        }
     }
 }
 
@@ -544,5 +357,35 @@ extension DispatchQueue {
             _ = handle()
         }
         return nil
+    }
+}
+
+extension Encodable {
+    public var encoder: JSONEncoder {
+        return .init()
+    }
+
+    public var data: Data? {
+        return try? encoder.encode(self)
+    }
+}
+
+public protocol DecodableExDecoder: Decodable {
+    static var decoder: JSONDecoder { get }
+}
+
+extension Data {
+    public func toModel<T: Decodable>() -> T? {
+        do {
+            let decoder: JSONDecoder
+            if let type = T.self as? DecodableExDecoder.Type {
+                decoder = type.decoder
+            } else {
+                decoder = JSONDecoder()
+            }
+            return try decoder.decode(T.self, from: self)
+        } catch {
+            return nil
+        }
     }
 }
