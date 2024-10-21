@@ -23,9 +23,12 @@ class SimpleCrypt: QuickStoreCryptProtocol {
     }
 
     func decrypt(_ key: String, value: Data) -> Data {
-        let d = value.base64EncodedData()
-        let bytes = d.bytes
-        let newBytes = bytes.map { (Int($0) + (255 - key.count % 255)) % 255 }.map { UInt8($0) }
+        guard let decodedData = Data(base64Encoded: value) else {
+            return Data()
+        }
+        let bytes = decodedData.bytes
+        let keyShift = key.count % 255
+        let newBytes = bytes.map { (Int($0) + (255 - keyShift)) % 255 }.map { UInt8($0) }
         let data = Data(newBytes)
         return data
     }

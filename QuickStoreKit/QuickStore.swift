@@ -59,7 +59,7 @@ extension QuickStoreProtocol where Key.RawValue == String {
         }
         if let crypt = crypt {
             newValue = newValue.map {
-                crypt.encrypt(key, value: $0)
+                crypt.encrypt(newKey, value: $0)
             }
         }
 
