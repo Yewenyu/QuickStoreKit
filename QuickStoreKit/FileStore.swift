@@ -59,8 +59,11 @@ class FileStore: QuickStoreHandleProtocol {
         let split = key.components(separatedBy: ".").map { key in
             key.data(using: .utf8)?.map { UInt8((Int($0) + key.count) % 256) }.data?.base64EncodedString() ?? key
         }
-
-        return split.joined(separator: ".")
+        let result = split.joined(separator: ".")
+        if result.count > 255 {
+            return result.prefix(255).description
+        }
+        return result
     }
 
     func encodeKey(_ key: String) -> String {
